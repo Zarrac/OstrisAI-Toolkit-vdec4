@@ -1,36 +1,52 @@
 #!/bin/bash
 
 # ==========================================
-# Ostris AI Toolkit - 50-Series Installer
+# Ostris AI Toolkit - 50-Series Installer (Robust Version)
 # Compatible: RTX 4070 Ti Super & RTX 5080
-# Environment: Conda + Python 3.10 + Torch 2.8 Nightly
+# Fixes: Python 3.12 Mismatch / Activation Issues
 # ==========================================
 
-# --- STEP 1: Configure Conda Environment ---
+# --- STEP 1: FORCE CONDA INITIALIZATION ---
+echo ">>> Initializing Conda..."
+# Try to find conda and initialize the shell hook
+eval "$(/opt/conda/bin/conda shell.bash hook)" 2>/dev/null || \
+eval "$(/root/miniconda3/bin/conda shell.bash hook)" 2>/dev/null || \
+eval "$(conda shell.bash hook)" 2>/dev/null
+
+# --- STEP 2: SETUP ENVIRONMENT ---
 echo ">>> Setting up Conda environment..."
 
-# Source Conda
-source /root/miniconda3/etc/profile.d/conda.sh 2>/dev/null || source /opt/conda/etc/profile.d/conda.sh 2>/dev/null || source ~/miniconda3/etc/profile.d/conda.sh
-
-# Clean slate
+# Deactivate main/base just in case
 conda deactivate
+
+# Remove old toolkit env if exists
 conda env remove -n toolkit -y
 
-# Create new env with Python 3.10 (Strict requirement)
+# Create new env with Python 3.10 (REQUIRED)
 conda create -n toolkit python=3.10 -y
+
+# ACTIVATE AND VERIFY
 conda activate toolkit
 
-# --- STEP 2: Clone Repository ---
+# CHECK: If python version is not 3.10, stop immediately
+PY_VER=$(python -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
+if [ "$PY_VER" != "3.10" ]; then
+    echo "ERROR: Failed to activate Python 3.10 environment."
+    echo "Current version is: $PY_VER"
+    echo "Please run: 'conda activate toolkit' manually and then run the pip commands."
+    exit 1
+fi
+echo ">>> Environment Verified: Python $PY_VER (Correct)"
+
+# --- STEP 3: Clone Repository ---
 cd /workspace
 echo ">>> Cloning Ostris AI Toolkit..."
 rm -rf ai-toolkit
 git clone --depth 1 https://github.com/ostris/ai-toolkit
 cd ai-toolkit
 
-# --- STEP 3: Create Custom Requirements File ---
+# --- STEP 4: Create Custom Requirements File ---
 echo ">>> Writing custom requirements for 50-Series..."
-
-# We overwrite the default requirements with your specific list
 cat <<EOF > requirements.txt
 --extra-index-url https://download.pytorch.org/whl/cu129
 torch==2.8.0
@@ -42,47 +58,41 @@ sageattention @ https://huggingface.co/MonsterMMORPG/Wan_GGUF/resolve/main/sagea
 hf_xet
 EOF
 
-# --- STEP 4: Install Dependencies ---
+# --- STEP 5: Install Dependencies ---
 echo ">>> Installing Python Requirements..."
 python -m pip install --upgrade pip
 
-# 1. Install Torch Stack FIRST (Explicitly Torch 2.8.0 + Audio)
+# 1. Install Torch Stack FIRST
 echo ">>> Installing Torch 2.8.0 / Vision / Audio..."
 pip install "torch==2.8.0" torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/cu129
 
-# 2. Install the custom requirements file we just created
+# 2. Install Custom Wheels
 echo ">>> Installing Custom Wheels..."
 pip install -r requirements.txt
 
-# 3. Patch Transformers & Diffusers (Fixes 'huggingface-hub' conflict)
+# 3. Patch Transformers
 echo ">>> Patching library versions..."
 pip install -U transformers diffusers accelerate peft huggingface_hub[cli] protobuf --extra-index-url https://download.pytorch.org/whl/cu129
 
-# --- STEP 5: Apply Permanent Memory Fixes ---
-echo ">>> Applying VRAM fragmentation fixes to Conda Env..."
+# --- STEP 6: Apply Permanent Memory Fixes ---
+echo ">>> Applying VRAM fragmentation fixes..."
 conda env config vars set PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True,max_split_size_mb:512 -n toolkit
 
-# --- STEP 6: Install Node.js v22 (For UI) ---
+# --- STEP 7: Install Node.js v22 (For UI) ---
 echo ">>> Installing Node.js v22..."
 apt-get update
 apt-get purge nodejs -y 2>/dev/null
 apt-get autoremove -y 2>/dev/null
 apt-get install -y ca-certificates curl gnupg
-
-# Add NodeSource Repo
 mkdir -p /etc/apt/keyrings
 curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg
 echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_22.x nodistro main" | tee /etc/apt/sources.list.d/nodesource.list
-
-# Install Node
 apt-get update
 apt-get install nodejs -y
 
-# --- STEP 7: Build the UI ---
+# --- STEP 8: Build the UI ---
 echo ">>> Building AI Toolkit UI..."
 cd /workspace/ai-toolkit/ui
-
-# Clean and Build
 rm -rf node_modules .next dist
 npm install
 npm run update_db
