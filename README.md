@@ -20,7 +20,7 @@ It is specifically optimized for **NVIDIA RTX 50-Series (Blackwell)** and **40-S
 
 Run this command in your terminal. It handles everything (Conda setup, Dependencies, UI Build, Memory Fixes).
 
-```
+```bash
 wget https://raw.githubusercontent.com/Zarrac/OstrisAI-Toolkit-vdec4/main/install.sh && bash install.sh```
 
 ## 🛠️ What This Script Does
