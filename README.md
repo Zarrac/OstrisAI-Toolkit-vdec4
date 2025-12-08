@@ -1,6 +1,4 @@
-Here is a professional, clean `README.md` for your GitHub repository. It explains exactly what your script does and how to use it, highlighting the specific fixes for the 50-series and 40-series cards.
 
-You can create a file named `README.md` in your repo and paste this content in.
 
 ***
 
