@@ -2,7 +2,7 @@
 
 ***
 
-# Ostris AI Toolkit - Optimized Installer (RTX 50 & 40 Series)
+# Ostris AI Toolkit vDec4 (RTX 50 & 40 Series)
 
 This repository contains a **one-click installation script** for the [Ostris AI Toolkit](https://github.com/ostris/ai-toolkit). 
 
