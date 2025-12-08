@@ -22,7 +22,8 @@ Run this command in your terminal. It handles everything (Conda setup, Dependenc
 
 ```bash
 wget https://raw.githubusercontent.com/Zarrac/OstrisAI-Toolkit-vdec4/main/install.sh && bash install.sh
-
+```
+```bash
 ## 🛠️ What This Script Does
 
 1.  **Environment:** Creates a clean Conda environment named `toolkit` running **Python 3.10** (Strict requirement for custom wheels).
