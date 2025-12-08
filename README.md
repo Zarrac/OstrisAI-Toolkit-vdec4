@@ -90,5 +90,3 @@ In your training JSON config:
 
 **Q: I see "CUDA error: out of memory" instantly.**
 A: Check your JSON config. Did you set `"low_vram": true`? If you are on a 16GB card, this is mandatory.
-
-```
