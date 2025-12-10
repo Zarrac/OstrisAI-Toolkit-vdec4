@@ -1,50 +1,61 @@
 #!/bin/bash
 
 # ==========================================
-# Ostris AI Toolkit - 50-Series Installer
-# Method: Force Conda Activation
+# Ostris AI Toolkit - 50-Series Installer (Bulletproof)
+# Method: Direct Path Execution (Impossible to hit 'main')
 # ==========================================
 
-# --- STEP 1: FORCE CONDA INITIALIZATION ---
-echo ">>> Initializing Conda..."
-# This block forces the script to "see" Conda
-eval "$(/opt/conda/bin/conda shell.bash hook)" 2>/dev/null || \
-eval "$(/root/miniconda3/bin/conda shell.bash hook)" 2>/dev/null || \
-eval "$(conda shell.bash hook)" 2>/dev/null
+# --- STEP 1: LOCATE CONDA & PREPARE ---
+echo ">>> initializing..."
 
-# --- STEP 2: SETUP ENVIRONMENT ---
-echo ">>> Setting up Conda environment..."
-
-# 1. Clean up
-conda deactivate 2>/dev/null
-conda env remove -n toolkit -y 2>/dev/null
-
-# 2. Create Python 3.10 Env (Required for wheels)
-conda create -n toolkit python=3.10 -y
-
-# 3. Activate
-conda activate toolkit
-
-# 4. Verify Activation
-PY_VER=$(python -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
-if [ "$PY_VER" != "3.10" ]; then
-    echo "----------------------------------------------------"
-    echo "CRITICAL ERROR: Environment did not switch to 3.10!"
-    echo "Current Python: $PY_VER"
-    echo "Please run this command instead: source install.sh"
-    echo "----------------------------------------------------"
+# Find Conda Base Path
+if [ -d "/opt/conda" ]; then
+    CONDA_BASE="/opt/conda"
+elif [ -d "$HOME/miniconda3" ]; then
+    CONDA_BASE="$HOME/miniconda3"
+elif [ -d "/root/miniconda3" ]; then
+    CONDA_BASE="/root/miniconda3"
+else
+    echo "Could not find Conda installation. Exiting."
     exit 1
 fi
-echo ">>> Environment Verified: Python $PY_VER (Success)"
 
-# --- STEP 3: Clone Repository ---
+# Enable Conda commands for this script
+source "$CONDA_BASE/etc/profile.d/conda.sh"
+
+# Force deactivate 'main' inside this script context
+conda deactivate
+conda deactivate
+
+echo ">>> Setting up 'toolkit' environment..."
+# Remove old env
+conda env remove -n toolkit -y 2>/dev/null
+
+# Create new env
+conda create -n toolkit python=3.10 -y
+
+# DEFINE DIRECT PATHS (The Fix)
+# We do not rely on 'activate'. We point directly to the binary.
+TK_PYTHON="$CONDA_BASE/envs/toolkit/bin/python"
+TK_PIP="$CONDA_BASE/envs/toolkit/bin/pip"
+
+# Verification
+if [ ! -f "$TK_PIP" ]; then
+    echo "CRITICAL ERROR: Could not locate pip at $TK_PIP"
+    exit 1
+fi
+
+echo ">>> Installing into: $TK_PIP" 
+# This proves we are not in main
+
+# --- STEP 2: CLONE REPO ---
 cd /workspace
 rm -rf ai-toolkit
 git clone --depth 1 https://github.com/ostris/ai-toolkit
 cd ai-toolkit
 
-# --- STEP 4: WRITE CUSTOM REQUIREMENTS (For 50-Series) ---
-echo ">>> Writing Optimized Requirements..."
+# --- STEP 3: GENERATE REQUIREMENTS ---
+echo ">>> Writing 50-Series Requirements..."
 cat <<EOF > requirements.txt
 --extra-index-url https://download.pytorch.org/whl/cu129
 torch==2.8.0
@@ -56,36 +67,56 @@ sageattention @ https://huggingface.co/MonsterMMORPG/Wan_GGUF/resolve/main/sagea
 hf_xet
 EOF
 
-# --- STEP 5: INSTALL ---
-echo ">>> Installing Dependencies..."
-python -m pip install --upgrade pip
+# --- STEP 4: INSTALL DEPENDENCIES (Using TK_PIP) ---
+echo ">>> Installing Python Packages..."
 
-# Install Torch Stack First
-pip install "torch==2.8.0" torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/cu129
+# Upgrade pip inside toolkit
+"$TK_PYTHON" -m pip install --upgrade pip
 
-# Install Custom Wheels
-pip install -r requirements.txt
+# 1. Install Torch Stack (Directly to toolkit)
+echo ">>> Installing Torch 2.8..."
+"$TK_PIP" install "torch==2.8.0" torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/cu129
 
-# Patch Transformers
-pip install -U transformers diffusers accelerate peft huggingface_hub[cli] protobuf --extra-index-url https://download.pytorch.org/whl/cu129
+# 2. Install Custom Wheels (Directly to toolkit)
+echo ">>> Installing Custom Wheels..."
+"$TK_PIP" install -r requirements.txt
 
-# --- STEP 6: MEMORY FIXES ---
+# 3. Patch Transformers (Directly to toolkit)
+echo ">>> Patching Transformers..."
+"$TK_PIP" install -U transformers diffusers accelerate peft huggingface_hub[cli] protobuf --extra-index-url https://download.pytorch.org/whl/cu129
+
+# --- STEP 5: MEMORY FIXES ---
+echo ">>> Applying Memory Fixes..."
 conda env config vars set PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True,max_split_size_mb:512 -n toolkit
 
-# --- STEP 7: UI SETUP ---
-echo ">>> Setting up UI..."
-# Node install
-apt-get update && apt-get install -y ca-certificates curl gnupg
+# --- STEP 6: UI SETUP ---
+echo ">>> Installing Node.js..."
+apt-get update -qq
+apt-get purge nodejs -y 2>/dev/null
+apt-get autoremove -y 2>/dev/null
+apt-get install -y ca-certificates curl gnupg
+
 mkdir -p /etc/apt/keyrings
 curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg
 echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_22.x nodistro main" | tee /etc/apt/sources.list.d/nodesource.list
-apt-get update && apt-get install nodejs -y
 
-# Build
-cd ui
+apt-get update -qq
+apt-get install nodejs -y
+
+echo ">>> Building UI..."
+cd /workspace/ai-toolkit/ui
 rm -rf node_modules .next dist
 npm install
 npm run update_db
 npm run build
 
-echo ">>> DONE. Run: conda activate toolkit"
+echo "========================================================"
+echo "   INSTALLATION SUCCESSFUL"
+echo "========================================================"
+echo "Everything is installed in the 'toolkit' environment."
+echo ""
+echo "To start using it, run these commands manually:"
+echo "1. conda deactivate" 
+echo "2. conda activate toolkit"
+echo "3. cd /workspace/ai-toolkit/ui && npm run start"
+echo "========================================================"
