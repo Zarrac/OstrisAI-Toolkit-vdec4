@@ -52,5 +52,6 @@ cd /workspace/ai-toolkit/ui
 npm run start
 ```
 
+## 📜 Credits
 *   **Toolkit:** [ostris/ai-toolkit](https://github.com/ostris/ai-toolkit)
 
