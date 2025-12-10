@@ -1,14 +1,13 @@
 #!/bin/bash
 
 # ==========================================
-# Ostris AI Toolkit - 50-Series Installer (Robust Version)
-# Compatible: RTX 4070 Ti Super & RTX 5080
-# Fixes: Python 3.12 Mismatch / Activation Issues
+# Ostris AI Toolkit - 50-Series Installer
+# Method: Force Conda Activation
 # ==========================================
 
 # --- STEP 1: FORCE CONDA INITIALIZATION ---
 echo ">>> Initializing Conda..."
-# Try to find conda and initialize the shell hook
+# This block forces the script to "see" Conda
 eval "$(/opt/conda/bin/conda shell.bash hook)" 2>/dev/null || \
 eval "$(/root/miniconda3/bin/conda shell.bash hook)" 2>/dev/null || \
 eval "$(conda shell.bash hook)" 2>/dev/null
@@ -16,37 +15,36 @@ eval "$(conda shell.bash hook)" 2>/dev/null
 # --- STEP 2: SETUP ENVIRONMENT ---
 echo ">>> Setting up Conda environment..."
 
-# Deactivate main/base just in case
-conda deactivate
+# 1. Clean up
+conda deactivate 2>/dev/null
+conda env remove -n toolkit -y 2>/dev/null
 
-# Remove old toolkit env if exists
-conda env remove -n toolkit -y
-
-# Create new env with Python 3.10 (REQUIRED)
+# 2. Create Python 3.10 Env (Required for wheels)
 conda create -n toolkit python=3.10 -y
 
-# ACTIVATE AND VERIFY
+# 3. Activate
 conda activate toolkit
 
-# CHECK: If python version is not 3.10, stop immediately
+# 4. Verify Activation
 PY_VER=$(python -c "import sys; print(f'{sys.version_info.major}.{sys.version_info.minor}')")
 if [ "$PY_VER" != "3.10" ]; then
-    echo "ERROR: Failed to activate Python 3.10 environment."
-    echo "Current version is: $PY_VER"
-    echo "Please run: 'conda activate toolkit' manually and then run the pip commands."
+    echo "----------------------------------------------------"
+    echo "CRITICAL ERROR: Environment did not switch to 3.10!"
+    echo "Current Python: $PY_VER"
+    echo "Please run this command instead: source install.sh"
+    echo "----------------------------------------------------"
     exit 1
 fi
-echo ">>> Environment Verified: Python $PY_VER (Correct)"
+echo ">>> Environment Verified: Python $PY_VER (Success)"
 
 # --- STEP 3: Clone Repository ---
 cd /workspace
-echo ">>> Cloning Ostris AI Toolkit..."
 rm -rf ai-toolkit
 git clone --depth 1 https://github.com/ostris/ai-toolkit
 cd ai-toolkit
 
-# --- STEP 4: Create Custom Requirements File ---
-echo ">>> Writing custom requirements for 50-Series..."
+# --- STEP 4: WRITE CUSTOM REQUIREMENTS (For 50-Series) ---
+echo ">>> Writing Optimized Requirements..."
 cat <<EOF > requirements.txt
 --extra-index-url https://download.pytorch.org/whl/cu129
 torch==2.8.0
@@ -58,50 +56,36 @@ sageattention @ https://huggingface.co/MonsterMMORPG/Wan_GGUF/resolve/main/sagea
 hf_xet
 EOF
 
-# --- STEP 5: Install Dependencies ---
-echo ">>> Installing Python Requirements..."
+# --- STEP 5: INSTALL ---
+echo ">>> Installing Dependencies..."
 python -m pip install --upgrade pip
 
-# 1. Install Torch Stack FIRST
-echo ">>> Installing Torch 2.8.0 / Vision / Audio..."
+# Install Torch Stack First
 pip install "torch==2.8.0" torchvision torchaudio --extra-index-url https://download.pytorch.org/whl/cu129
 
-# 2. Install Custom Wheels
-echo ">>> Installing Custom Wheels..."
+# Install Custom Wheels
 pip install -r requirements.txt
 
-# 3. Patch Transformers
-echo ">>> Patching library versions..."
+# Patch Transformers
 pip install -U transformers diffusers accelerate peft huggingface_hub[cli] protobuf --extra-index-url https://download.pytorch.org/whl/cu129
 
-# --- STEP 6: Apply Permanent Memory Fixes ---
-echo ">>> Applying VRAM fragmentation fixes..."
+# --- STEP 6: MEMORY FIXES ---
 conda env config vars set PYTORCH_CUDA_ALLOC_CONF=expandable_segments:True,max_split_size_mb:512 -n toolkit
 
-# --- STEP 7: Install Node.js v22 (For UI) ---
-echo ">>> Installing Node.js v22..."
-apt-get update
-apt-get purge nodejs -y 2>/dev/null
-apt-get autoremove -y 2>/dev/null
-apt-get install -y ca-certificates curl gnupg
+# --- STEP 7: UI SETUP ---
+echo ">>> Setting up UI..."
+# Node install
+apt-get update && apt-get install -y ca-certificates curl gnupg
 mkdir -p /etc/apt/keyrings
 curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg
 echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_22.x nodistro main" | tee /etc/apt/sources.list.d/nodesource.list
-apt-get update
-apt-get install nodejs -y
+apt-get update && apt-get install nodejs -y
 
-# --- STEP 8: Build the UI ---
-echo ">>> Building AI Toolkit UI..."
-cd /workspace/ai-toolkit/ui
+# Build
+cd ui
 rm -rf node_modules .next dist
 npm install
 npm run update_db
 npm run build
 
-echo "========================================================"
-echo "   INSTALLATION COMPLETE"
-echo "========================================================"
-echo "1. Activate environment:  conda activate toolkit"
-echo "2. Login to HuggingFace:  huggingface-cli login"
-echo "3. Start the UI:          cd /workspace/ai-toolkit/ui && npm run start"
-echo "========================================================"
+echo ">>> DONE. Run: conda activate toolkit"
