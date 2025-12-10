@@ -51,25 +51,6 @@ Navigate to the UI folder and start the web interface:
 cd /workspace/ai-toolkit/ui
 npm run start
 ```
-*Access the UI via your browser (usually port 3000).*
 
-### 3. Training Configuration (Important!)
-
-#### For 16GB Cards (RTX 4070 Ti Super / 4080)
-To prevent crashing, you must enable **Low VRAM** mode in your training config or UI settings:
-```json
-"model": {
-    "low_vram": true,
-    "quantize": true
-}
-```
-
-#### If you are NOT logged into HuggingFace
-If you do not want to use a HuggingFace token, you cannot use the default `ostris/Flex.1-alpha` model path. You must:
-1.  **Upload** a `.safetensors` model file to your instance.
-2.  **Point** the "Model Path" in the UI to that local file (e.g., `/workspace/models/flux1-dev.safetensors`).
-3.  *Alternatively*, use the public model: `black-forest-labs/FLUX.1-schnell`.
-
-## 📜 Credits
 *   **Toolkit:** [ostris/ai-toolkit](https://github.com/ostris/ai-toolkit)
-*   **Installer:** Zarrac
+
